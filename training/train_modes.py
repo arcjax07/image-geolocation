@@ -1,6 +1,6 @@
 import logging
 import torch
-from torchsummary import summary
+from torchinfo import summary
 from typing import Any
 from transformers import Trainer, TrainingArguments, \
                          AutoModelForImageClassification, \

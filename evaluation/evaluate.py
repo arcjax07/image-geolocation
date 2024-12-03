@@ -3,7 +3,7 @@ from dataset_creation.benchmark import BenchmarkDataset
 from transformers import AutoModelForImageClassification, CLIPVisionModel
 from config import *
 from models import SuperGuessr, ProtoRefiner, load_state_dict
-from torchsummary import summary
+from torchinfo import summary
 from .metrics import compute_geoguessr_metrics
 from training import evaluate_model
 

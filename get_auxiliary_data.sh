@@ -1,7 +1,12 @@
 # Downloads data needed for data augmentation and training on auxiliary data.
 
+# Driving Side of the Road
+python data/driving_side/driving_side.py
+
 # Political boundaries
-curl --create-dirs -O --output-dir data/geocells https://github.com/wmgeolab/geoBoundaries/raw/main/releaseData/CGAZ/geoBoundariesCGAZ_ADM2.geojson
+wget -O data/geocells/admin0.geojson https://github.com/wmgeolab/geoBoundaries/raw/refs/heads/main/releaseData/CGAZ/geoBoundariesCGAZ_ADM0.geojson
+wget -O data/geocells/admin1.geojson https://github.com/wmgeolab/geoBoundaries/raw/refs/heads/main/releaseData/CGAZ/geoBoundariesCGAZ_ADM1.geojson
+wget -O data/geocells/admin2.geojson https://github.com/wmgeolab/geoBoundaries/raw/refs/heads/main/releaseData/CGAZ/geoBoundariesCGAZ_ADM2.geojson
 
 # GADM Country Area Data
 curl --create-dirs -O --output-dir data/gadm https://geodata.ucdavis.edu/gadm/gadm4.1/gadm_410-levels.zip

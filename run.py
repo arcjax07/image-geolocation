@@ -10,7 +10,7 @@ from dataset_creation.benchmark import BenchmarkDataset
 from preprocessing import preprocess
 from evaluation import evaluate
 from datasets import DatasetDict, concatenate_datasets
-from models import VITEmbedding, CLIPEmbedding
+from models import CLIPEmbedding
 from config import *
 
 logger = logging.getLogger('run')
@@ -127,9 +127,9 @@ def main():
             if 'vit' not in args.name:
                 print('Using CLIP embedder.')
                 embedder = CLIPEmbedding(args.name, load_checkpoint=True, panorama=(not args.yfcc))
-            else:
-                print('Using ViT embedder.')
-                embedder = VITEmbedding(args.named)
+            # else:
+            #     print('Using ViT embedder.')
+            #     embedder = VITEmbedding(args.named)
 
         # Preprocess
         geocells = GEOCELL_PATH_YFCC if args.yfcc else GEOCELL_PATH

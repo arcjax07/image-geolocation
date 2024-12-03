@@ -23,9 +23,9 @@ METADATA_PATH_LANDMARKS = 'data/data_landmarks_aug.csv'
 IMAGE_PATH_LANDMARKS = 'data/benchmarks/google_landmark/jpgs'
 
 # Political boundaries
-COUNTRY_PATH = 'data/geocells/countries.geojson'
-ADMIN_1_PATH = 'data/geocells/admin_1.geojson'
-ADMIN_2_PATH = 'data/geocells/admin_2.geojson'
+COUNTRY_PATH = 'data/geocells/admin0.geojson'
+ADMIN_1_PATH = 'data/geocells/admin1.geojson'
+ADMIN_2_PATH = 'data/geocells/admin2.geojson'
 
 # Geocell creation
 MIN_CELL_SIZE = 1000 # (PIGEOTTO), 30 (PIGEON)
