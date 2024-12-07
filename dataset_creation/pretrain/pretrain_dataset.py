@@ -1,4 +1,3 @@
-import os
 import random
 import torch
 import numpy as np
@@ -80,16 +79,16 @@ class PretrainDataset(torch.utils.data.Dataset):
         self.auxiliary = auxiliary
 
         # Dataset cutoffs
-        self.cutoff_1 = len(self.df[self.df["source"].str.startswith("o")].index) * 4
-        self.cutoff_2 = (
-            len(self.df[self.df["source"].str.startswith("v")].index) + self.cutoff_1
-        )
-        self.cutoff_3 = (
-            len(self.df[self.df["source"].str.startswith("l")].index) * 5
-            + self.cutoff_2
-        )
+        # self.cutoff_1 = len(self.df[self.df["source"].str.startswith("o")].index) * 4
+        # self.cutoff_2 = (
+        #     len(self.df[self.df["source"].str.startswith("v")].index) + self.cutoff_1
+        # )
+        # self.cutoff_3 = (
+        #     len(self.df[self.df["source"].str.startswith("l")].index) * 5
+        #     + self.cutoff_2
+        # )
 
-        no_str = "no" if auxiliary == False else ""
+        no_str = "no" if not auxiliary else ""
         print(f"Initialized {split} dataset with {no_str} auxiliary data.")
 
     def _convert_to_row_index(self, index: int) -> Tuple:
@@ -101,23 +100,25 @@ class PretrainDataset(torch.utils.data.Dataset):
         Returns:
             Tuple: (row index, image index)
         """
-        if index < self.cutoff_1:
-            row_index = int(index / 4)
-            image_col = index % 4
+        # if index < self.cutoff_1:
+        #     row_index = int(index / 4)
+        #     image_col = index % 4
 
-        elif index < self.cutoff_2:
-            row_index = int(self.cutoff_1 / 4) + (index - self.cutoff_1)
-            image_col = 0
+        # elif index < self.cutoff_2:
+        #     row_index = int(self.cutoff_1 / 4) + (index - self.cutoff_1)
+        #     image_col = 0
 
-        else:
-            row_index = (
-                int(self.cutoff_1 / 4)
-                + (self.cutoff_2 - self.cutoff_1)
-                + int((index - self.cutoff_2) / 5)
-            )
-            image_col = (index - self.cutoff_2) % 5
+        # else:
+        #     row_index = (
+        #         int(self.cutoff_1 / 4)
+        #         + (self.cutoff_2 - self.cutoff_1)
+        #         + int((index - self.cutoff_2) / 5)
+        #     )
+        #     image_col = (index - self.cutoff_2) % 5
 
-        return row_index, image_col
+        # return row_index, image_col
+
+        return index, 0
 
     def _select_image(self, index: int, image_col_idx: int) -> Tuple:
         """Selects one random image for the given sample.
@@ -130,45 +131,46 @@ class PretrainDataset(torch.utils.data.Dataset):
             Tuple: (Image, heading offset)
         """
         s = self.df.iloc[index]
-        if s.source.startswith("o"):
-            # Select the correct of the four images for the given datapoint
-            image_col = [x for x in self.df.columns if "image" in x][image_col_idx]
-            image_filename = s[image_col]
+        # if s.source.startswith("o"):
+        #     # Select the correct of the four images for the given datapoint
+        #     image_col = [x for x in self.df.columns if "image" in x][image_col_idx]
+        #     image_filename = s[image_col]
 
-            # Load the image
-            image = Image.open(IMAGE_PATH + "/" + image_filename)
+        #     # Load the image
+        #     image = Image.open(IMAGE_PATH + "/" + image_filename)
 
-            # Calculate the heading offset
-            angle_offset = image_col_idx * 90
+        #     # Calculate the heading offset
+        #     angle_offset = image_col_idx * 90
 
-        elif s.source.startswith("l"):
-            # Randomly select one of the 5 images for the given datapoint
-            img_start = image_col_idx * 512
-            img_end = (image_col_idx + 1) * 512
+        # elif s.source.startswith("l"):
+        #     # Randomly select one of the 5 images for the given datapoint
+        #     img_start = image_col_idx * 512
+        #     img_end = (image_col_idx + 1) * 512
 
-            # Load the image
-            image_filename = s["image"]
-            image = Image.open(IMAGE_PATH_2 + "/" + image_filename)
-            image = image.convert("RGB")
-            image = np.asarray(image, dtype=np.float32) / 255
+        #     # Load the image
+        #     image_filename = s["image"]
+        #     image = Image.open(IMAGE_PATH_2 + "/" + image_filename)
+        #     image = image.convert("RGB")
+        #     image = np.asarray(image, dtype=np.float32) / 255
 
-            # Select and crop image
-            image = image[:, img_start:img_end, :3] * 255
-            image = image.astype(np.uint8)
-            image = Image.fromarray(image)
-            image = l_cropper(image)
+        #     # Select and crop image
+        #     image = image[:, img_start:img_end, :3] * 255
+        #     image = image.astype(np.uint8)
+        #     image = Image.fromarray(image)
+        #     image = l_cropper(image)
 
-            # Calculate the heading offset
-            angle_offset = image_col_idx * 72
+        #     # Calculate the heading offset
+        #     angle_offset = image_col_idx * 72
 
-        elif s.source.startswith("v"):
-            # Load the image
+        # elif s.source.startswith("v"):
+        # Load the image
+        try:
             image_filename = s["image"]
             image = Image.open(image_filename)
             image = v_cropper(image)
             angle_offset = 0
 
-        else:
+        except:
             raise Exception(f"Invalid image source: {s.source}")
 
         return image, angle_offset
@@ -216,11 +218,11 @@ class PretrainDataset(torch.utils.data.Dataset):
             climate_caption = ""
 
         # Location
-        if random.random() > 0.3 or climate_caption == "" or self.auxiliary == False:
+        if random.random() > 0.3 or climate_caption == "" or not self.auxiliary:
             location_caption = (
                 f"A Street View photo {town_string}{region_string}in {country}."
             )
-            if self.auxiliary == False:
+            if not self.auxiliary:
                 return location_caption
         else:
             location_caption = ""

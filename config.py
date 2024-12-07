@@ -8,7 +8,7 @@ CLIP_EMBED_DIM = 1024
 
 ### StreetView
 METADATA_PATH = "data/data_duels.csv"
-PRETRAIN_METADATA_PATH = "data/osv5m_streetview_cropped/train.csv"
+PRETRAIN_METADATA_PATH = "data/osv5m_streetview_cropped/metadata.csv"
 IMAGE_PATH = "data/streetview_outputs_cropped"
 INPUT_PATH = "data/streetview_outputs"
 IMAGE_PATH_2 = "data/streetview_part_2_data"
