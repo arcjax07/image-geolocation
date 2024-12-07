@@ -4,7 +4,7 @@ import os
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # The script is being run directly
     # Get the project directory (parent of the script directory)
     project_dir = os.path.dirname(script_dir)
@@ -30,17 +30,30 @@ from tqdm import tqdm
 
 from cell import Cell
 from cell_collection import CellCollection
-from config import COUNTRY_PATH, ADMIN_1_PATH, ADMIN_2_PATH, MIN_CELL_SIZE, MAX_CELL_SIZE
+from config import (
+    COUNTRY_PATH,
+    ADMIN_1_PATH,
+    ADMIN_2_PATH,
+    MIN_CELL_SIZE,
+    MAX_CELL_SIZE,
+)
 
 # Constants
-CRS = 'EPSG:4326'
-NEEDED_COLS = ['id', 'lat', 'lng', 'selection', 'country_name']
-LEVEL_NAMES = ['country_id', 'admin_1_id', 'admin_2_id']
+CRS = "EPSG:4326"
+NEEDED_COLS = ["id", "lat", "lng", "selection", "country_name"]
+LEVEL_NAMES = ["country_id", "admin_1_id", "admin_2_id"]
 
 # Special Country Lists
-COPY_COUNTRY_ALLOW = ['Faroe Islands', 'Isle of Man', 'United States Minor Outlying Isl', 'Curaçao', 'Jersey']
-SPECIAL_COUNTRIES = ['Hong Kong', 'Christmas Island', 'Curaçao']
-COPY_A1_ALLOW = ['Latvia', 'Virgin Islands, U.S.', 'Uruguay', 'Greenland']
+COPY_COUNTRY_ALLOW = [
+    "Faroe Islands",
+    "Isle of Man",
+    "United States Minor Outlying Isl",
+    "Curaçao",
+    "Jersey",
+]
+SPECIAL_COUNTRIES = ["Hong Kong", "Christmas Island", "Curaçao"]
+COPY_A1_ALLOW = ["Latvia", "Virgin Islands, U.S.", "Uruguay", "Greenland"]
+
 
 class GeocellCreator:
     def __init__(self, df: pd.DataFrame, output_file: str) -> None:
@@ -50,21 +63,29 @@ class GeocellCreator:
             df (pd.DataFrame): Pandas dataframe used during training.
             output_file (str): Where the geocells should be saved to.
         """
-        assert all([x in df.columns for x in NEEDED_COLS]), f'Dataframe must contain all of the following \
+        assert all(
+            [x in df.columns for x in NEEDED_COLS]
+        ), f'Dataframe must contain all of the following \
             columns: {NEEDED_COLS}. Also, "selection" is used to filter out all rows with value "train".'
-        
+
         # Save properties
         self.output = output_file
         self.cells = None
 
         # Load dataframe
-        self.df = df[df['selection'] == 'train'].copy().reset_index()
+        self.df = df[df["selection"] == "train"].copy().reset_index()
 
         keep_cols = [x for x in self.df.columns if x in NEEDED_COLS or x in LEVEL_NAMES]
         self.df = self.df[keep_cols].copy()
-        self.df = gpd.GeoDataFrame(self.df, geometry=gpd.points_from_xy(self.df.lng, self.df.lat), crs='EPSG:4326')
+        self.df = gpd.GeoDataFrame(
+            self.df,
+            geometry=gpd.points_from_xy(self.df.lng, self.df.lat),
+            crs="EPSG:4326",
+        )
 
-    def generate(self, min_cell_size: int=MIN_CELL_SIZE, max_cell_size: int=MAX_CELL_SIZE):
+    def generate(
+        self, min_cell_size: int = MIN_CELL_SIZE, max_cell_size: int = MAX_CELL_SIZE
+    ):
         """Generate geocells.
 
         Args:
@@ -74,7 +95,7 @@ class GeocellCreator:
                 Defaults to MAX_CELL_SIZE.
         """
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             self.cells = self._initialize_cells(min_cell_size)
             self.cells.balance(min_cell_size, max_cell_size)
             self.geo_cell_df = self.cells.to_pandas()
@@ -96,29 +117,38 @@ class GeocellCreator:
         """
         # Load boundaries and assign IDs
         cols = [str(x) for x in self.df.columns]
-        if all([x in cols for x in LEVEL_NAMES]) == False or self.df[LEVEL_NAMES].isnull().sum().sum() > 0:
+        if (
+            all([x in cols for x in LEVEL_NAMES]) == False
+            or self.df[LEVEL_NAMES].isnull().sum().sum() > 0
+        ):
             boundaries = self._load_geo_boundaries()
             for name, boundary in zip(LEVEL_NAMES, boundaries):
                 self.df = self._assign_boundary_ids(self.df, boundary, name)
                 self.df = self._apply_nearest_match(self.df, name)
 
-            #self.df.to_csv('data/data_yfcc_augmented_non_contaminated.csv', index=False)
-        
+            # self.df.to_csv('data/data_yfcc_augmented_non_contaminated.csv', index=False)
+
         else:
             boundaries = self._load_geo_boundaries(most_granular=True)
 
         # Initialize all geocells
-        initialize_cell_fnc = functools.partial(self.__initialize_cell, boundaries[2], min_cell_size)
-        tqdm.pandas(desc='Initializing geocells for every admin 2 area')
+        initialize_cell_fnc = functools.partial(
+            self.__initialize_cell, boundaries[2], min_cell_size
+        )
+        tqdm.pandas(desc="Initializing geocells for every admin 2 area")
         cells = self.df.groupby(LEVEL_NAMES[2]).progress_apply(initialize_cell_fnc)
         cells = [item for sublist in cells for item in sublist]
 
         # Add unassigned areas to cells
         self._assign_unassinged_areas(cells, boundaries[2])
         return CellCollection(cells)
-    
-    def __initialize_cell(self, admin_2_boundary: gpd.GeoDataFrame,
-                          min_cell_size: int, df: gpd.GeoDataFrame) -> Cell:
+
+    def __initialize_cell(
+        self,
+        admin_2_boundary: gpd.GeoDataFrame,
+        min_cell_size: int,
+        df: gpd.GeoDataFrame,
+    ) -> Cell:
         """Initializes a geocell based on an admin 2 boundary level.
 
         Args:
@@ -137,12 +167,14 @@ class GeocellCreator:
 
         # Get shapes
         polygon_ids = np.array([int(x) for x in df[LEVEL_NAMES[2]].unique()])
-        points = df['geometry'].values.tolist()
+        points = df["geometry"].values.tolist()
         polygons = admin_2_boundary.iloc[polygon_ids].geometry.unique().tolist()
 
         return [Cell(name, admin_1, country, points, polygons)]
 
-    def _load_geo_boundaries(self, most_granular: bool=False) -> Tuple[gpd.GeoDataFrame]:
+    def _load_geo_boundaries(
+        self, most_granular: bool = False
+    ) -> Tuple[gpd.GeoDataFrame]:
         """Loads the geographic boundaries for countries and other admin levels.
 
         Args:
@@ -153,33 +185,34 @@ class GeocellCreator:
             Tuple[gpd.GeoDataFrame]: countries, admin 1, and admin 2 level
                 geographic boundaries.
         """
-        print('Loading geographic boundaries ...')
+        print("Loading geographic boundaries ...")
 
         # Load smaller administrative areas
         admin_2 = gpd.read_file(ADMIN_2_PATH)
         admin_2 = admin_2.set_crs(crs=CRS)
-        admin_2['geometry'] = admin_2['geometry'].apply(lambda x: x.buffer(0))
-        print(' ... loaded admin 2 boundaries.')
+        admin_2["geometry"] = admin_2["geometry"].apply(lambda x: x.buffer(0))
+        print(" ... loaded admin 2 boundaries.")
 
         if most_granular:
             return None, None, admin_2
 
-         # Load Geo areas
+        # Load Geo areas
         admin_1 = gpd.read_file(ADMIN_1_PATH)
         admin_1 = admin_1.set_crs(crs=CRS)
-        admin_1['geometry'] = admin_1['geometry'].apply(lambda x: x.buffer(0))
-        print(' ... loaded admin 1 boundaries.')
+        admin_1["geometry"] = admin_1["geometry"].apply(lambda x: x.buffer(0))
+        print(" ... loaded admin 1 boundaries.")
 
         # Load countries
         countries = gpd.read_file(COUNTRY_PATH)
         countries = countries.set_crs(crs=CRS)
-        countries['geometry'] = countries['geometry'].apply(lambda x: x.buffer(0))
-        print(' ... loaded countries.')
+        countries["geometry"] = countries["geometry"].apply(lambda x: x.buffer(0))
+        print(" ... loaded countries.")
 
         return countries, admin_1, admin_2
 
-    def _assign_boundary_ids(self, df: gpd.GeoDataFrame, ref_df: gpd.GeoDataFrame,
-                                  col: str) -> gpd.GeoDataFrame:
+    def _assign_boundary_ids(
+        self, df: gpd.GeoDataFrame, ref_df: gpd.GeoDataFrame, col: str
+    ) -> gpd.GeoDataFrame:
         """Assigns geographic IDs to a dataframe given a boundary reference dataframe.
 
         Args:
@@ -190,15 +223,15 @@ class GeocellCreator:
         Returns:
             gpd.GeoDataFrame: df augmented with boundary ID data.
         """
-        found_points = df.sindex.query_bulk(ref_df.geometry, predicate='covers')
+        found_points = df.sindex.query_bulk(ref_df.geometry, predicate="covers")
         for i in range(len(ref_df.index)):
-            mask = (found_points[0] == i)
+            mask = found_points[0] == i
             indices = found_points[1][mask].tolist()
             if len(indices) == 0:
                 continue
-                
+
             df.loc[indices, col] = str(i)
-            
+
         return df
 
     def _assign_unassinged_areas(self, cells: List[Cell], admin_2: gpd.GeoDataFrame):
@@ -213,21 +246,25 @@ class GeocellCreator:
         cell_idx = list(cell_map.keys())
 
         assigned = admin_2.loc[admin_2.index.isin(cell_idx)].copy().reset_index()
-        assigned['centroid'] = [row.geometry.centroid for _, row in assigned.iterrows()]
-        assigned = gpd.GeoDataFrame(assigned, geometry='centroid')
+        assigned["centroid"] = [row.geometry.centroid for _, row in assigned.iterrows()]
+        assigned = gpd.GeoDataFrame(assigned, geometry="centroid")
 
-        unassigned = admin_2.loc[admin_2.index.isin(cell_idx) == False].reset_index(drop=True)
-        unassigned['centroid'] = [row.geometry.centroid for _, row in unassigned.iterrows()]
-        unassigned = gpd.GeoDataFrame(unassigned, geometry='centroid')
+        unassigned = admin_2.loc[admin_2.index.isin(cell_idx) == False].reset_index(
+            drop=True
+        )
+        unassigned["centroid"] = [
+            row.geometry.centroid for _, row in unassigned.iterrows()
+        ]
+        unassigned = gpd.GeoDataFrame(unassigned, geometry="centroid")
 
         # Find assignments
         closest_match = assigned.sindex.nearest(unassigned.centroid)[1]
-        assignments = assigned.iloc[closest_match]['index'].values
+        assignments = assigned.iloc[closest_match]["index"].values
 
         # Add polygons to closest cells
         for i, row in unassigned.iterrows():
             closest_cell = assignments[i]
-            cell_map[closest_cell].add_polygons([row['geometry']])
+            cell_map[closest_cell].add_polygons([row["geometry"]])
 
     def _apply_nearest_match(self, df: gpd.GeoDataFrame, col: str) -> gpd.GeoDataFrame:
         """Fill NaN values in a column based on the closest geographic match.
@@ -247,7 +284,7 @@ class GeocellCreator:
         return df
 
 
-if __name__ == '__main__':
-    df = pd.read_csv('data/data_yfcc_augmented_non_contaminated.csv')
-    geocell_creator = GeocellCreator(df, 'data/geocells_yfcc.csv')
+if __name__ == "__main__":
+    df = pd.read_csv("data/data_yfcc_augmented_non_contaminated.csv")
+    geocell_creator = GeocellCreator(df, "data/geocells_yfcc.csv")
     geocells = geocell_creator.generate()

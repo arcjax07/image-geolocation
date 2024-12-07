@@ -5,10 +5,11 @@ from preprocessing import haversine_matrix
 
 # TODO: should be based on Geoguessr score
 
+
 class HedgeLayer(nn.Module):
-    """Deploys a Geoguessr guess hedging strategy.
-    """
-    def __init__(self, temperature: float=1):
+    """Deploys a Geoguessr guess hedging strategy."""
+
+    def __init__(self, temperature: float = 1):
         """Deploys a Geoguessr guess hedging strategy.
 
         Args:
@@ -41,7 +42,7 @@ class HedgeLayer(nn.Module):
         initial_sum = topk_probs.sum()
         redist_probs = topk_probs * probs
         redist_probs = (redist_probs / redist_probs.sum()) * initial_sum
-        return redist_probs.type('torch.cuda.FloatTensor')
+        return redist_probs.type("torch.cuda.FloatTensor")
 
     def _temperature_softmax(self, input: Tensor) -> Tensor:
         """Performs softmax with temperature.

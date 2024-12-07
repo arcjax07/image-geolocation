@@ -9,6 +9,7 @@ from PIL import Image
 # Initialize CLIP image processor
 clip_processor = CLIPProcessor.from_pretrained(CLIP_MODEL)
 
+
 class EvalDataset(Dataset):
     def __init__(self, data: Dataset):
         """Initializes a streetview dataset.
@@ -38,18 +39,28 @@ class EvalDataset(Dataset):
             Dict: transformed dictionary.
         """
         x = {}
-        images = [Image.fromarray(x.numpy()) for x in samples['image']]
-        x['pixel_values'] = clip_processor(images=images, return_tensors='pt')['pixel_values']
-        if 'image_2' in samples:
+        images = [Image.fromarray(x.numpy()) for x in samples["image"]]
+        x["pixel_values"] = clip_processor(images=images, return_tensors="pt")[
+            "pixel_values"
+        ]
+        if "image_2" in samples:
             for i in range(2, 5):
-                images = [Image.fromarray(x.numpy()) for x in samples[f'image_{i}']]
-                x[f'pixel_values_{i}'] = clip_processor(images=images,
-                                                        return_tensors='pt')['pixel_values']
+                images = [Image.fromarray(x.numpy()) for x in samples[f"image_{i}"]]
+                x[f"pixel_values_{i}"] = clip_processor(
+                    images=images, return_tensors="pt"
+                )["pixel_values"]
 
-            x['pixel_values'] = torch.concat((x['pixel_values'], x['pixel_values_2'], x['pixel_values_3'],
-                                            x['pixel_values_4']), dim=1)
+            x["pixel_values"] = torch.concat(
+                (
+                    x["pixel_values"],
+                    x["pixel_values_2"],
+                    x["pixel_values_3"],
+                    x["pixel_values_4"],
+                ),
+                dim=1,
+            )
 
-        return x['pixel_values']
+        return x["pixel_values"]
 
     def __getitem__(self, index: Any) -> Dict:
         """Gets sample with index from dataset and preprocesses image
@@ -62,14 +73,18 @@ class EvalDataset(Dataset):
         """
         if type(index) == int:
             sample = self.streetview_data[index]
-            sample['pixel_values'] = extract_features(sample, clip_processor)['pixel_values']
-            sample = {key: value for key, value in sample.items() if 'image' not in key}
+            sample["pixel_values"] = extract_features(sample, clip_processor)[
+                "pixel_values"
+            ]
+            sample = {key: value for key, value in sample.items() if "image" not in key}
             return sample
 
         elif type(index) == slice:
             samples = self.streetview_data[index]
-            samples['pixel_values'] = self._get_multiple_features(samples)
-            samples = {key: value for key, value in samples.items() if 'image' not in key}
+            samples["pixel_values"] = self._get_multiple_features(samples)
+            samples = {
+                key: value for key, value in samples.items() if "image" not in key
+            }
             return samples
 
         return self.streetview_data[index]
@@ -86,9 +101,9 @@ class EvalDataset(Dataset):
         """
         if type(dataset) == DatasetDict:
             return DatasetDict(
-                train=cls(dataset['train']),
-                val=cls(dataset['val']),
-                test=cls(dataset['test'])
+                train=cls(dataset["train"]),
+                val=cls(dataset["val"]),
+                test=cls(dataset["test"]),
             )
 
         return cls(dataset)

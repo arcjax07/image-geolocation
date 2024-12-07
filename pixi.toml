@@ -7,6 +7,7 @@ platforms = ["linux-aarch64"]
 version = "0.1.0"
 
 [tasks]
+download_data = "bash get_auxiliary_data.sh"
 
 [dependencies]
 python = ">=3.11.6,<3.12"
@@ -22,10 +23,11 @@ pandarallel = ">=1.6.5,<1.7"
 datasets = ">=2.19.2,<2.20"
 pygeos = ">=0.14,<0.15"
 torchinfo = ">=1.8.0,<2"
+pip = ">=24.3.1,<25"
+ruff = ">=0.8.2,<0.9"
 
 [pypi-dependencies]
 accelerate = ">=1.1.1, <2"
 transformers = ">=4.46.3, <5"
 srtm-py = ">=0.3.7, <0.4"
 latlon-utils = ">=0.0.7, <0.0.8"
-

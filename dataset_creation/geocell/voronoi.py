@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import Voronoi
 
+
 # Adapted from: https://nbviewer.org/gist/pv/8037100
 def voronoi_finite_polygons(vor: Voronoi, radius=None):
     """
@@ -32,7 +33,7 @@ def voronoi_finite_polygons(vor: Voronoi, radius=None):
 
     center = vor.points.mean(axis=0)
     if radius is None:
-        radius = vor.points.ptp().max()*2
+        radius = vor.points.ptp().max() * 2
 
     # Construct a map containing all ridges for a given point
     all_ridges = {}
@@ -62,7 +63,7 @@ def voronoi_finite_polygons(vor: Voronoi, radius=None):
 
             # Compute the missing endpoint of an infinite ridge
 
-            t = vor.points[p2] - vor.points[p1] # tangent
+            t = vor.points[p2] - vor.points[p1]  # tangent
             t /= np.linalg.norm(t)
             n = np.array([-t[1], t[0]])  # normal
 
@@ -76,7 +77,7 @@ def voronoi_finite_polygons(vor: Voronoi, radius=None):
         # sort region counterclockwise
         vs = np.asarray([new_vertices[v] for v in new_region])
         c = vs.mean(axis=0)
-        angles = np.arctan2(vs[:,1] - c[1], vs[:,0] - c[0])
+        angles = np.arctan2(vs[:, 1] - c[1], vs[:, 0] - c[0])
         new_region = np.array(new_region)[np.argsort(angles)]
 
         # finish

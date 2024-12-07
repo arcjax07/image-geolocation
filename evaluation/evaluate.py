@@ -7,9 +7,16 @@ from torchinfo import summary
 from .metrics import compute_geoguessr_metrics
 from training import evaluate_model
 
-def evaluate(model: str, dataset: BenchmarkDataset, yfcc: bool, landmarks: bool,
-             base_model: str=None, heading: bool=False,
-             refine: bool=True) -> AutoModelForImageClassification:
+
+def evaluate(
+    model: str,
+    dataset: BenchmarkDataset,
+    yfcc: bool,
+    landmarks: bool,
+    base_model: str = None,
+    heading: bool = False,
+    refine: bool = True,
+) -> AutoModelForImageClassification:
     """Evaluates a model on a dataset split.
 
     Note:
@@ -33,25 +40,33 @@ def evaluate(model: str, dataset: BenchmarkDataset, yfcc: bool, landmarks: bool,
     """
 
     # Load model
-    embed_model = CLIPVisionModel.from_pretrained(CLIP_MODEL) if base_model is not None else None
+    embed_model = (
+        CLIPVisionModel.from_pretrained(CLIP_MODEL) if base_model is not None else None
+    )
     if base_model is not None and base_model != CLIP_MODEL:
-        state_dict = torch.load(base_model, map_location=torch.device('cuda'))
+        state_dict = torch.load(base_model, map_location=torch.device("cuda"))
         load_state_dict(embed_model, state_dict)
-        print(f'Initialized base model with weights from: {base_model}')
+        print(f"Initialized base model with weights from: {base_model}")
 
-    full_model = SuperGuessr(embed_model, panorama=True, hierarchical=False,
-                             multi_task=False, heading=heading, freeze_base=True,
-                             yfcc=yfcc, num_candidates=50)
-    full_model.load_state('saved_models/WorldCLIP_head.model')
+    full_model = SuperGuessr(
+        embed_model,
+        panorama=True,
+        hierarchical=False,
+        multi_task=False,
+        heading=heading,
+        freeze_base=True,
+        yfcc=yfcc,
+        num_candidates=50,
+    )
+    full_model.load_state("saved_models/WorldCLIP_head.model")
     full_model.load_state(model)
-    full_model.to('cuda')
+    full_model.to("cuda")
     summary(full_model)
     print(full_model)
 
     # Guess refinement
     refiner = None
     if refine:
-        
         # Constants
         proto_model_path = PROTO_MODEL_YFCC_PATH if yfcc else PROTO_MODEL_PATH
         proto_path = PROTO_PATH_YFCC if yfcc else PROTO_PATH
@@ -64,23 +79,39 @@ def evaluate(model: str, dataset: BenchmarkDataset, yfcc: bool, landmarks: bool,
 
         protos = None
         try:
-            ref = torch.load(proto_model_path, map_location='cuda')
+            ref = torch.load(proto_model_path, map_location="cuda")
             protos = ref.protos
         except FileNotFoundError:
             pass
 
         if protos is None:
-            refiner = ProtoRefiner(20, False, 10000, proto_path=proto_path, dataset_path=dataset_path,
-                                   temperature=1)
+            refiner = ProtoRefiner(
+                20,
+                False,
+                10000,
+                proto_path=proto_path,
+                dataset_path=dataset_path,
+                temperature=1,
+            )
             torch.save(refiner, proto_model_path)
         else:
             # StreetView: 5, 1000km max restriction, temp=1.6
             # YFCC + landmarks: 40, no max restriction, temp=0.6
-            refiner = ProtoRefiner(40, False, 100000, proto_path=proto_path, dataset_path=dataset_path,
-                                   protos=protos, temperature=0.6, verbose=False)
+            refiner = ProtoRefiner(
+                40,
+                False,
+                100000,
+                proto_path=proto_path,
+                dataset_path=dataset_path,
+                protos=protos,
+                temperature=0.6,
+                verbose=False,
+            )
 
         print(refiner)
 
     # Perform evaluation
-    _ = evaluate_model(full_model, dataset, compute_geoguessr_metrics, TRAIN_ARGS, refiner)
+    _ = evaluate_model(
+        full_model, dataset, compute_geoguessr_metrics, TRAIN_ARGS, refiner
+    )
     return model

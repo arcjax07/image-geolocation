@@ -2,7 +2,13 @@ import torch
 from torch import Tensor
 import numpy as np
 from PIL import Image
-from config import LABEL_SMOOTHING_CONSTANT, IMAGE_PATH, INPUT_PATH, LABEL_SMOOTHING_MONTHS
+from config import (
+    LABEL_SMOOTHING_CONSTANT,
+    IMAGE_PATH,
+    INPUT_PATH,
+    LABEL_SMOOTHING_MONTHS,
+)
+
 
 def smooth_labels(distances: Tensor) -> Tensor:
     """Haversine smooths labels for shared representation learning across geocells.
@@ -18,6 +24,7 @@ def smooth_labels(distances: Tensor) -> Tensor:
     smoothed_labels = torch.nan_to_num(smoothed_labels, nan=0.0, posinf=0.0, neginf=0.0)
     return smoothed_labels
 
+
 def __scale_factor(original_fov: int) -> float:
     """Calculates the scaling factor to scale to 90 degree FOV
 
@@ -32,7 +39,8 @@ def __scale_factor(original_fov: int) -> float:
     factor = np.arcsin(fov_90) / np.arcsin(fov_old)
     return factor
 
-def center_crop(filename: str, original_fov: int=96):
+
+def center_crop(filename: str, original_fov: int = 96):
     """Center crops the given image to 90 degree FOV
 
     Args:
@@ -70,7 +78,7 @@ def alternative_crop(filename: str):
     Args:
         filename (str): image location
     """
-    image = Image.open(f'{INPUT_PATH}/{filename}')
+    image = Image.open(f"{INPUT_PATH}/{filename}")
     img = np.asarray(image)
 
     left = 11
@@ -85,5 +93,5 @@ def alternative_crop(filename: str):
         center_cropped_img = img[top:bottom, left:right, ...]
 
     output = Image.fromarray(center_cropped_img)
-    output_filename = filename.split('.')[0] + '_cropped.jpg'
-    output = output.save(f'{IMAGE_PATH}/{output_filename}')
+    output_filename = filename.split(".")[0] + "_cropped.jpg"
+    output = output.save(f"{IMAGE_PATH}/{output_filename}")

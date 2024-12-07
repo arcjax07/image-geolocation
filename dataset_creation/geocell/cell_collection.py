@@ -7,10 +7,11 @@ from typing import Iterable, Any, List
 from shapely.affinity import scale
 from cell import Cell
 
-CRS = 'EPSG:4326'
-GEOCELL_COLUMNS = ['name', 'admin_1', 'country', 'size', 'num_polygons', 'geometry']
+CRS = "EPSG:4326"
+GEOCELL_COLUMNS = ["name", "admin_1", "country", "size", "num_polygons", "geometry"]
 OPTICS_PARAMS_GEOGUESSR = [(8, 0.05), (10, 0.025), (15, 0.015)]
 OPTICS_PARAMS_YFCC = [(300, 0.05), (400, 0.005), (1000, 0.0001)]
+
 
 class CellCollection(set):
     def __init__(self, cells: Iterable[Cell]):
@@ -24,7 +25,7 @@ class CellCollection(set):
         """
         cs = [x for x in cells if not x.empty]
         super(CellCollection, self).__init__(set(cs))
-        
+
         # Ensure all elements are instances of Cell
         for cell in cells:
             if not isinstance(cell, Cell):
@@ -58,7 +59,7 @@ class CellCollection(set):
             if cell_id == cell.cell_id:
                 return cell
 
-        raise KeyError(f'Cell {cell_id} is not in collection.')
+        raise KeyError(f"Cell {cell_id} is not in collection.")
 
     def copy(self) -> Any:
         """Creates copy of cells.
@@ -69,10 +70,11 @@ class CellCollection(set):
         Returns:
             List: copy of list of geocells
         """
-        return CellCollection([Cell(x.cell_id, x.admin_1, x.country, x.points, x.polygons) \
-                               for x in self])
+        return CellCollection(
+            [Cell(x.cell_id, x.admin_1, x.country, x.points, x.polygons) for x in self]
+        )
 
-    def to_pandas(self, country: str=None) -> gpd.GeoDataFrame:
+    def to_pandas(self, country: str = None) -> gpd.GeoDataFrame:
         """Converts a list of cells to a geopandas DataFrame.
 
         Args:
@@ -87,7 +89,7 @@ class CellCollection(set):
             cells = [x for x in self if x.empty == False]
 
         df = pd.DataFrame(data=[x.tolist() for x in cells], columns=GEOCELL_COLUMNS)
-        df = gpd.GeoDataFrame(df, geometry='geometry', crs=CRS)
+        df = gpd.GeoDataFrame(df, geometry="geometry", crs=CRS)
         return df
 
     def save(self, output_file: str):
@@ -107,7 +109,7 @@ class CellCollection(set):
         collection = np.load(file, allow_pickle=True)
         cs = [x for x in collection if not x.empty]
         super(CellCollection, self).__init__(set(cs))
-        print('Overwrote with contents of:', file)
+        print("Overwrote with contents of:", file)
 
     @classmethod
     def load(cls, file: str):
@@ -126,10 +128,18 @@ class CellCollection(set):
             max_cell_size (int): Minimum cell size.
         """
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self._balance_country, country, min_cell_size) for country in self.countries[::-1]]
-            for _ in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc='Fusing cells within countries', unit='country'):
+            futures = [
+                executor.submit(self._balance_country, country, min_cell_size)
+                for country in self.countries[::-1]
+            ]
+            for _ in tqdm(
+                concurrent.futures.as_completed(futures),
+                total=len(futures),
+                desc="Fusing cells within countries",
+                unit="country",
+            ):
                 pass
-            
+
         self._split_geocells(min_cell_size, max_cell_size)
 
     def _balance_country(self, country: str, min_cell_size: int):
@@ -139,7 +149,9 @@ class CellCollection(set):
             country (str): Country ID
             min_cell_size (int): Minimum cell size.
         """
-        cells = CellCollection([x for x in self if x.country == country and x.empty == False])
+        cells = CellCollection(
+            [x for x in self if x.country == country and x.empty == False]
+        )
         cells.__fuse(min_cell_size=min_cell_size)
 
     def _split_geocells(self, min_cell_size: int, max_cell_size: int):
@@ -150,20 +162,26 @@ class CellCollection(set):
             max_cell_size (int): Maximum cell size.
         """
         for args in OPTICS_PARAMS_YFCC:
-            print('||| NEW OPTICS PARAMS ||| ', args)
+            print("||| NEW OPTICS PARAMS ||| ", args)
             new_cells = []
 
             large_cells = [x for x in self if x.size > max_cell_size]
             round = 1
             while len(large_cells) > 0:
-
                 # Progress bar
-                desc = f'Round {round}: splitting large cells'
-                pbar = tqdm(total=len(large_cells), desc=desc, dynamic_ncols=True, unit='cell')
+                desc = f"Round {round}: splitting large cells"
+                pbar = tqdm(
+                    total=len(large_cells), desc=desc, dynamic_ncols=True, unit="cell"
+                )
 
                 # Parallalize the splitting of cells across cores
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    futures = [executor.submit(cell._split_cell, self, args, min_cell_size, max_cell_size)for cell in large_cells]
+                    futures = [
+                        executor.submit(
+                            cell._split_cell, self, args, min_cell_size, max_cell_size
+                        )
+                        for cell in large_cells
+                    ]
                     for future in concurrent.futures.as_completed(futures):
                         nc = future.result()
                         new_cells.extend(nc)
@@ -179,7 +197,7 @@ class CellCollection(set):
                 # Close the progress bar
                 pbar.close()
 
-            self.save('data/yfcc_geocell_collection_new.npy')
+            self.save("data/yfcc_geocell_collection_new.npy")
 
     def __fuse(self, min_cell_size: int):
         """Fuses all contained cells.
@@ -192,59 +210,83 @@ class CellCollection(set):
             consider_cells = self - exclude_list
             cell_df = consider_cells.to_pandas()
 
-            cell_df['scaled'] = cell_df['geometry'].apply(lambda x: scale(x, xfact=1.01, yfact=1.01))
-            cell_df = cell_df.set_geometry('scaled')
-            df_small = cell_df.loc[cell_df['size'] < min_cell_size].copy()
+            cell_df["scaled"] = cell_df["geometry"].apply(
+                lambda x: scale(x, xfact=1.01, yfact=1.01)
+            )
+            cell_df = cell_df.set_geometry("scaled")
+            df_small = cell_df.loc[cell_df["size"] < min_cell_size].copy()
             if len(df_small.index) == 0:
                 break
-                
+
             # Sample one cell
-            center = df_small.sample(random_state=330).iloc[0]        
-            df_slice = df_small[df_small['name'] != center['name']].reset_index(drop=True)
-            
+            center = df_small.sample(random_state=330).iloc[0]
+            df_slice = df_small[df_small["name"] != center["name"]].reset_index(
+                drop=True
+            )
+
             # Find sorrounding cells - prioritize small adjacent cells in same ADMIN 1 area
-            look_df = df_slice[df_slice['admin_1'] == center['admin_1']].reset_index(drop=True)
-            indices = look_df.sindex.query(center.scaled, predicate='intersects')
-            found_indices = look_df.iloc[indices]['name'].values
-            
+            look_df = df_slice[df_slice["admin_1"] == center["admin_1"]].reset_index(
+                drop=True
+            )
+            indices = look_df.sindex.query(center.scaled, predicate="intersects")
+            found_indices = look_df.iloc[indices]["name"].values
+
             # Find sorrounding cells - prioritize big adjacent cells in same ADMIN 1 area
             if len(found_indices) == 0:
-                look_df = cell_df[(cell_df['admin_1'] == center['admin_1']) & (cell_df['name'] != center['name'])].reset_index(drop=True)
-                indices = look_df.sindex.query(center.scaled, predicate='intersects')
-                found_indices = look_df.iloc[indices]['name'].values
-                
+                look_df = cell_df[
+                    (cell_df["admin_1"] == center["admin_1"])
+                    & (cell_df["name"] != center["name"])
+                ].reset_index(drop=True)
+                indices = look_df.sindex.query(center.scaled, predicate="intersects")
+                found_indices = look_df.iloc[indices]["name"].values
+
             # Find sorrounding cells - prioritize small adjacent cells in other ADMIN areas
             if len(found_indices) == 0:
-                indices = df_slice.sindex.query(center.scaled, predicate='intersects')
-                found_indices = df_slice.iloc[indices]['name'].values
-                    
+                indices = df_slice.sindex.query(center.scaled, predicate="intersects")
+                found_indices = df_slice.iloc[indices]["name"].values
+
             # Find sorrounding cells - prioritize big adjacent cells in other ADMIN areas
             if len(found_indices) == 0:
-                indices = cell_df[(cell_df['name'] != center['name'])].sindex.query(center.scaled, predicate='intersects')
-                found_indices = cell_df[(cell_df['name'] != center['name'])].iloc[indices]['name'].values
-                        
+                indices = cell_df[(cell_df["name"] != center["name"])].sindex.query(
+                    center.scaled, predicate="intersects"
+                )
+                found_indices = (
+                    cell_df[(cell_df["name"] != center["name"])]
+                    .iloc[indices]["name"]
+                    .values
+                )
+
             # Try again but enlarge 2 times as much
             if len(found_indices) == 0:
                 new_shape = scale(center.scaled, xfact=2, yfact=2)
-                indices = cell_df[(cell_df['name'] != center['name'])].sindex.query(new_shape, predicate='intersects')
-                found_indices = cell_df[(cell_df['name'] != center['name'])].iloc[indices]['name'].values
-                        
+                indices = cell_df[(cell_df["name"] != center["name"])].sindex.query(
+                    new_shape, predicate="intersects"
+                )
+                found_indices = (
+                    cell_df[(cell_df["name"] != center["name"])]
+                    .iloc[indices]["name"]
+                    .values
+                )
+
             if len(found_indices) == 0:
-                exclude_list.add(self.find(center['name']))
+                exclude_list.add(self.find(center["name"]))
                 continue
-            
-            sorrounds = cell_df[(cell_df['name'].isin(found_indices)) & (cell_df['name'] != center['name'])]
-            sorrounds = sorrounds.sort_values(by='size', ascending=False)
-            
+
+            sorrounds = cell_df[
+                (cell_df["name"].isin(found_indices))
+                & (cell_df["name"] != center["name"])
+            ]
+            sorrounds = sorrounds.sort_values(by="size", ascending=False)
+
             # Get cells
-            c_cell = self.find(center['name'])
-            s_cell = self.find(sorrounds.iloc[0]['name'])
-            
+            c_cell = self.find(center["name"])
+            s_cell = self.find(sorrounds.iloc[0]["name"])
+
             # Merge
             c_cell.combine([s_cell])
-    
+
     def __sub__(self, other):
         return CellCollection(super().__sub__(other))
-    
+
     def __add__(self, other):
         return CellCollection(self.union(other))

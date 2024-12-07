@@ -10,15 +10,22 @@ from sklearn.cluster import OPTICS
 from scipy.spatial import Voronoi
 from voronoi import voronoi_finite_polygons
 
-CRS = 'EPSG:4326'
-CELL_COLUMNS = ['id', 'lng', 'lat']
-GEOCELL_COLUMNS = ['name', 'admin_1', 'country', 'size', 'num_polygons', 'geometry']
+CRS = "EPSG:4326"
+CELL_COLUMNS = ["id", "lng", "lat"]
+GEOCELL_COLUMNS = ["name", "admin_1", "country", "size", "num_polygons", "geometry"]
+
 
 class Cell:
-    """Abstraction of a geocell.
-    """
-    def __init__(self, cell_id: str, admin_1: str, country: str,
-                 points: List[Point], polygons: List[Polygon]):
+    """Abstraction of a geocell."""
+
+    def __init__(
+        self,
+        cell_id: str,
+        admin_1: str,
+        country: str,
+        points: List[Point],
+        polygons: List[Polygon],
+    ):
         """Initializes a geocell.
 
         Args:
@@ -37,7 +44,7 @@ class Cell:
             self._polygons = [polygons]
         else:
             self._polygons = list(polygons)
-        
+
     @property
     def size(self) -> int:
         """Returns the number of coordinates in cell.
@@ -46,7 +53,7 @@ class Cell:
             int: coordinates in cell
         """
         return len(self.points)
-        
+
     @property
     def shape(self) -> Polygon:
         """Combines cell's collection of polygons to a geocell shape.
@@ -116,7 +123,7 @@ class Cell:
 
         # NEW COMPUTATION BASED ON SHAPE
         # return self.shape.centroid
-    
+
     @property
     def empty(self) -> bool:
         """Whether the geocell is empty.
@@ -134,11 +141,11 @@ class Cell:
         """
         try:
             diff_shape = self.shape.difference(other.shape)
-            
+
         except TopologicalError as e:
-            print(f'Error occurred during subtracting in cell: {self.cell_id}')
+            print(f"Error occurred during subtracting in cell: {self.cell_id}")
             raise TopologicalError(e)
-        
+
         self._polygons = [diff_shape.buffer(0)]
 
         # Convert Point objects to tuples
@@ -159,14 +166,14 @@ class Cell:
         """
         for other in others:
             if other is self:
-                print('Tried to combine cell with itself')
-                continue 
+                print("Tried to combine cell with itself")
+                continue
 
             self.add_points(other.points)
             self.add_polygons(other.polygons)
             other._points = []
             other._polygons = []
-        
+
     def add_polygons(self, polygons: List[Polygon]):
         """Adds list of polygons to current cell.
 
@@ -174,7 +181,7 @@ class Cell:
             polygons (List[Polygon]): polygons
         """
         self._polygons += polygons
-        
+
     def add_points(self, points: List[Point]):
         """Adds list of points to current cell.
 
@@ -185,14 +192,21 @@ class Cell:
             self._points += points
         except TypeError:
             self._points += points.tolist()
-        
+
     def tolist(self) -> List:
         """Converts cell to a list.
 
         Returns:
             List: output
         """
-        return [self.cell_id, self.admin_1, self.country, len(self.points), len(self.polygons), self.shape]
+        return [
+            self.cell_id,
+            self.admin_1,
+            self.country,
+            len(self.points),
+            len(self.polygons),
+            self.shape,
+        ]
 
     def to_pandas(self) -> gpd.GeoDataFrame:
         """Converts a cell to a geopandas DataFrame.
@@ -205,8 +219,9 @@ class Cell:
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lng, df.lat), crs=CRS)
         return df
 
-    def __separate_points(self, points: List[Point], polygons: List[Polygon],
-                          contain_points: bool) -> Any:
+    def __separate_points(
+        self, points: List[Point], polygons: List[Polygon], contain_points: bool
+    ) -> Any:
         """Separates the given points and polygons from the current cell.
 
         Args:
@@ -218,10 +233,10 @@ class Cell:
             Any: New cell
         """
         coords = tuple((p.x, p.y) for p in points)
-        new_name = str(hash(coords))[:12] 
+        new_name = str(hash(coords))[:12]
 
-        # Create new shape           
-        new_shape = shapely.ops.unary_union(polygons)       
+        # Create new shape
+        new_shape = shapely.ops.unary_union(polygons)
         new_shape = new_shape.buffer(0)
         if contain_points and isinstance(new_shape, MultiPolygon) == False:
             new_shape = Polygon(new_shape.exterior)
@@ -230,7 +245,7 @@ class Cell:
         new_cell = Cell(new_name, self.admin_1, self.country, points, [new_shape])
         return new_cell
 
-    def voronoi_polygons(self, coords: np.ndarray=None) -> List[Polygon]:
+    def voronoi_polygons(self, coords: np.ndarray = None) -> List[Polygon]:
         """Generates voronoi shapes that fill out the cell shape.
 
         Args:
@@ -251,28 +266,32 @@ class Cell:
 
         vor = Voronoi(v_coords)
         regions, vertices = voronoi_finite_polygons(vor)
-        
+
         # Create Polygons
         polys = []
         for region in regions:
             polygon = Polygon(vertices[region])
             polys.append(polygon)
-        
+
         # Intersect with original cell shape
         try:
             polys = [x.intersection(self.shape) for x in polys]
         except TopologicalError as e:
-            print(f'Error occurred in cell: {self.cell_id}')
+            print(f"Error occurred in cell: {self.cell_id}")
             raise TopologicalError(e)
 
         # Return area belonging to each Point
-        df = pd.DataFrame({'geometry': polys})
-        df = gpd.GeoDataFrame(df, geometry='geometry')
-        points = [Point(p[0], p[1]) for p in coords] if coords is not None else self.points
+        df = pd.DataFrame({"geometry": polys})
+        df = gpd.GeoDataFrame(df, geometry="geometry")
+        points = (
+            [Point(p[0], p[1]) for p in coords] if coords is not None else self.points
+        )
         indices = df.sindex.nearest(points, return_all=False)[1]
         return [polys[i] for i in indices]
 
-    def _separate_single_cluster(self, df: pd.DataFrame, cluster: int=0) -> Tuple[List[Any]]:
+    def _separate_single_cluster(
+        self, df: pd.DataFrame, cluster: int = 0
+    ) -> Tuple[List[Any]]:
         """Separates a single cluster from a geocell.
 
         Args:
@@ -287,16 +306,20 @@ class Cell:
         polygons = self.voronoi_polygons()
 
         # Separate out points
-        cluster_df = df[df['cluster'] == cluster][['lng', 'lat']]
-        assert len(cluster_df.index) > 0, 'Dataframe does not contain a cluster'
+        cluster_df = df[df["cluster"] == cluster][["lng", "lat"]]
+        assert len(cluster_df.index) > 0, "Dataframe does not contain a cluster"
         cluster_points = [self.points[i] for i in cluster_df.index]
         cluster_polys = [polygons[i] for i in cluster_df.index]
 
         # Create new cell
-        new_cell = self.__separate_points(cluster_points, cluster_polys, contain_points=True)
+        new_cell = self.__separate_points(
+            cluster_points, cluster_polys, contain_points=True
+        )
         return [new_cell], []
 
-    def _separate_multi_cluster(self, df: pd.DataFrame, non_null_large_clusters: List[int]) -> List[Any]:
+    def _separate_multi_cluster(
+        self, df: pd.DataFrame, non_null_large_clusters: List[int]
+    ) -> List[Any]:
         """Separates multiple cluster from a geocell.
 
         Args:
@@ -307,35 +330,46 @@ class Cell:
             List[Any]: New cells.
         """
         # Assign unassigned points based on cluster centroids
-        assigned_df = df[df['cluster'].isin(non_null_large_clusters)]
-        unassigned_df = df[df['cluster'].isin(non_null_large_clusters) == False]
-        cc = assigned_df.groupby(['cluster'])[['lng', 'lat']].mean().reset_index()
+        assigned_df = df[df["cluster"].isin(non_null_large_clusters)]
+        unassigned_df = df[df["cluster"].isin(non_null_large_clusters) == False]
+        cc = assigned_df.groupby(["cluster"])[["lng", "lat"]].mean().reset_index()
         cc = gpd.GeoDataFrame(cc, geometry=gpd.points_from_xy(cc.lng, cc.lat), crs=CRS)
 
         # Assign unassigned points
         nearest_index = cc.sindex.nearest(unassigned_df.geometry, return_all=False)[1]
-        df.loc[df['cluster'].isin(non_null_large_clusters) == False, 'cluster'] = cc.iloc[nearest_index]['cluster'].values   
+        df.loc[df["cluster"].isin(non_null_large_clusters) == False, "cluster"] = (
+            cc.iloc[nearest_index]["cluster"].values
+        )
 
         # Get polygons
         if len(cc.index) == 2:
-            return self._separate_single_cluster(df, cluster=cc.iloc[0]['cluster'])
-        
+            return self._separate_single_cluster(df, cluster=cc.iloc[0]["cluster"])
+
         else:
-            polygons = self.voronoi_polygons(coords=cc[['lng', 'lat']].values)
+            polygons = self.voronoi_polygons(coords=cc[["lng", "lat"]].values)
 
             # Separate out clusters
             new_cells = []
-            for cluster, polygon in zip(cc['cluster'].unique(), polygons):
-                cluster_coords = df[df['cluster'] == cluster][['lng', 'lat']]
-                cluster_points = [Point(row.lng, row.lat) for _, row in cluster_coords.iterrows()]
-                new_cell = self.__separate_points(cluster_points, [polygon], contain_points=True)
+            for cluster, polygon in zip(cc["cluster"].unique(), polygons):
+                cluster_coords = df[df["cluster"] == cluster][["lng", "lat"]]
+                cluster_points = [
+                    Point(row.lng, row.lat) for _, row in cluster_coords.iterrows()
+                ]
+                new_cell = self.__separate_points(
+                    cluster_points, [polygon], contain_points=True
+                )
                 new_cells.append(new_cell)
 
             return new_cells, [self]
 
-    def _split_cell(self, add_to: Any, cluster_args: Tuple[float], min_cell_size: int,
-                    max_cell_size: int) -> List[Any]:
-        """Splits a cell into two. 
+    def _split_cell(
+        self,
+        add_to: Any,
+        cluster_args: Tuple[float],
+        min_cell_size: int,
+        max_cell_size: int,
+    ) -> List[Any]:
+        """Splits a cell into two.
 
         Args:
             add_to (Any): CellCollection to add new geocells to.
@@ -351,25 +385,25 @@ class Cell:
             return []
 
         # Get dataframe
-        df = pd.DataFrame(data=self.coords, columns=['lng', 'lat'])
+        df = pd.DataFrame(data=self.coords, columns=["lng", "lat"])
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lng, df.lat), crs=CRS)
 
         # Cluster
         clusterer = OPTICS(min_samples=cluster_args[0], xi=cluster_args[1])
-        df['cluster'] = clusterer.fit_predict(df[['lng', 'lat']].values)
-        
+        df["cluster"] = clusterer.fit_predict(df[["lng", "lat"]].values)
+
         # No clusters found
-        unique_clusters = df['cluster'].nunique()
+        unique_clusters = df["cluster"].nunique()
         if unique_clusters < 2:
             return []
 
         # Erase small clusters
-        cluster_counts = df['cluster'].value_counts()
+        cluster_counts = df["cluster"].value_counts()
         small_clusters = cluster_counts[cluster_counts < min_cell_size].index.tolist()
-        df.loc[df['cluster'].isin(small_clusters), 'cluster'] = -1
+        df.loc[df["cluster"].isin(small_clusters), "cluster"] = -1
 
         # Count clusters
-        cluster_counts = df['cluster'].value_counts()
+        cluster_counts = df["cluster"].value_counts()
         large_clusters = cluster_counts[cluster_counts >= min_cell_size].index
         non_null_large_clusters = [x for x in large_clusters if x != -1]
 
@@ -379,16 +413,20 @@ class Cell:
 
         # Dougnut extraction possible
         if len(large_clusters) == 2 and len(non_null_large_clusters) == 1:
-            null_df = df[df['cluster'] == -1]
+            null_df = df[df["cluster"] == -1]
             if len(null_df) > max_cell_size:
                 return []
 
             # Separate a single cluster
-            new_cells, remove_cells = self._separate_single_cluster(df, non_null_large_clusters[0])
+            new_cells, remove_cells = self._separate_single_cluster(
+                df, non_null_large_clusters[0]
+            )
 
         # At least 2 assigned large clusters exist
         else:
-            new_cells, remove_cells = self._separate_multi_cluster(df, non_null_large_clusters)
+            new_cells, remove_cells = self._separate_multi_cluster(
+                df, non_null_large_clusters
+            )
 
         # Detach new cells
         for new_cell in new_cells:
@@ -418,50 +456,51 @@ class Cell:
         return proc_cells
 
     def __clean_dirty_splits(self, cells: List[Any]):
-        """Cleans messy splits that split polygons into multiple parts.
-        """
+        """Cleans messy splits that split polygons into multiple parts."""
         df = pd.DataFrame(data=[x.tolist() for x in cells], columns=GEOCELL_COLUMNS)
-        df = gpd.GeoDataFrame(df, geometry='geometry', crs=CRS)
+        df = gpd.GeoDataFrame(df, geometry="geometry", crs=CRS)
 
         # Identifying Multipolygons
-        multi_polys = df[df['geometry'].type == 'MultiPolygon']
+        multi_polys = df[df["geometry"].type == "MultiPolygon"]
 
         # Iterate through rows with Multipolygons
         for index, row in multi_polys.iterrows():
-
             # Find points
-            points = cells[index].to_pandas()['geometry'] # .to_crs('EPSG:3857')
-            
+            points = cells[index].to_pandas()["geometry"]  # .to_crs('EPSG:3857')
+
             # Splitting Multipolygons
-            all_polygons = list(row['geometry'].geoms)
-            
+            all_polygons = list(row["geometry"].geoms)
+
             # Finding the Largest Sub-Polygon
             largest_poly = max(all_polygons, key=lambda polygon: polygon.area)
-            
+
             # Flag
             did_assign = False
-            
+
             # Assigning Smaller Polygons
             for small_poly in all_polygons:
                 if small_poly != largest_poly:
-                    
                     # Creating a GeoSeries with the same index and CRS as 'test'
-                    small_poly_gseries = gpd.GeoSeries([small_poly], index=[index], crs=CRS)
-                    
+                    small_poly_gseries = gpd.GeoSeries(
+                        [small_poly], index=[index], crs=CRS
+                    )
+
                     # Exclude the original polygon during the intersection calculation
                     other_polys = df.drop(index)
-                    
+
                     # Create a small buffer around the small polygon to account for mismatched borders
                     buffered_poly = small_poly_gseries.buffer(0.01)
-                    
+
                     # Identify polygons that intersect with the buffered small polygon
-                    intersecting_polys = other_polys[other_polys.intersects(buffered_poly.unary_union)]
+                    intersecting_polys = other_polys[
+                        other_polys.intersects(buffered_poly.unary_union)
+                    ]
 
                     if len(intersecting_polys) == 0:
                         continue
 
                     did_assign = True
-                    
+
                     # Find the polygon that has the largest intersection area
                     largest_intersect_index = intersecting_polys.geometry.apply(
                         lambda poly: poly.intersection(buffered_poly.unary_union).area
@@ -470,11 +509,15 @@ class Cell:
                     # Checking which points fall into 'small_poly'
                     mask = points.within(small_poly)
                     points_in_small_poly = points[mask]
-                    cells[index]._points = [x for x in cells[index].points if x not in points_in_small_poly]
+                    cells[index]._points = [
+                        x for x in cells[index].points if x not in points_in_small_poly
+                    ]
                     cells[largest_intersect_index].add_points(points_in_small_poly)
-                    
+
                     # Union the small polygon with the polygon having largest common border
-                    cells[largest_intersect_index]._polygons = [cells[largest_intersect_index].shape.union(small_poly)]
+                    cells[largest_intersect_index]._polygons = [
+                        cells[largest_intersect_index].shape.union(small_poly)
+                    ]
 
             if did_assign:
                 # Keeping the largest polygon in the original GeoDataFrame
@@ -482,16 +525,16 @@ class Cell:
 
     def __eq__(self, other):
         return self.cell_id == other.cell_id
-    
+
     def __ne__(self, other):
         return self.cell_id != other.cell_id
 
     def __hash__(self):
         return hash(self.cell_id)
-        
+
     def __repr__(self):
-        rep = f'Cell(id={self.cell_id}, admin_1={self.admin_1}, country={self.country}, size={len(self.points)}, num_polys={len(self.polygons)})'
+        rep = f"Cell(id={self.cell_id}, admin_1={self.admin_1}, country={self.country}, size={len(self.points)}, num_polys={len(self.polygons)})"
         return rep
-        
+
     def __str__(self):
         return self.__repr__()

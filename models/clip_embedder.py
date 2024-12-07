@@ -7,9 +7,15 @@ from transformers import CLIPProcessor, CLIPVisionModel
 from PIL import Image
 import torch.distributed
 
+
 class CLIPEmbedding(torch.nn.Module):
-    def __init__(self, model_name: str, device: str='cuda', load_checkpoint: bool=False,
-                 panorama: bool=False):
+    def __init__(
+        self,
+        model_name: str,
+        device: str = "cuda",
+        load_checkpoint: bool = False,
+        panorama: bool = False,
+    ):
         """CLIP embedding model (not trainable)
 
         Args:
@@ -28,9 +34,11 @@ class CLIPEmbedding(torch.nn.Module):
 
         # Load checkpoint if required
         if load_checkpoint:
-            state_dict = torch.load(model_name, map_location=torch.device('cuda')) # '../' + PRETRAINED_CLIP
+            state_dict = torch.load(
+                model_name, map_location=torch.device("cuda")
+            )  # '../' + PRETRAINED_CLIP
             load_state_dict(self.clip_model.base_model, state_dict, embedder=True)
-            print('Loaded embedder from checkpoint:', model_name)
+            print("Loaded embedder from checkpoint:", model_name)
 
         if type(device) == str:
             self.clip_model = self.clip_model.to(self.device)
@@ -50,8 +58,8 @@ class CLIPEmbedding(torch.nn.Module):
         """
         with torch.no_grad():
             if isinstance(image, Tensor) == False:
-                inputs = self.processor(images=image, return_tensors='pt')
-                pixel_values = inputs['pixel_values']
+                inputs = self.processor(images=image, return_tensors="pt")
+                pixel_values = inputs["pixel_values"]
             else:
                 pixel_values = image
 
@@ -59,7 +67,7 @@ class CLIPEmbedding(torch.nn.Module):
                 pixel_values = pixel_values.to(self.device)
             else:
                 pixel_values = pixel_values.cuda(self.device)
-        
+
             outputs = self.clip_model.base_model(pixel_values=pixel_values)
             cls_token_embedding = outputs.last_hidden_state
             cls_token_embedding = torch.mean(cls_token_embedding, dim=1)
@@ -71,6 +79,7 @@ class CLIPEmbedding(torch.nn.Module):
         Returns:
             Callable: The hook to be registered on a module's forward function.
         """
+
         def hook(model, input, output):
             self.pre_embed_outputs = output[0]
 
@@ -85,9 +94,9 @@ class CLIPEmbedding(torch.nn.Module):
         Returns:
             Tensor: _description_
         """
-        #if isinstance(image, Tensor):
+        # if isinstance(image, Tensor):
         return self._get_embedding(image)
-    
+
         # UNCOMMENT FOR PIGEON
 
         # if 'image_2' not in kwargs:
