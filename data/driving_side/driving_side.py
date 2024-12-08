@@ -1,7 +1,9 @@
 import json
 from bs4 import BeautifulSoup
 import requests
+from country_converter import CountryConverter
 
+coco = CountryConverter()
 
 def clean_country_name(name):
     # Remove text in parentheses and special notes
@@ -41,8 +43,14 @@ def get_driving_sides():
             side = columns[2].text.strip()
 
             if country and side:
-                driving_sides[country] = side
-
+                # Convert country name to ISO code
+                country_code = coco.convert(names=country, to='ISO2', not_found=None)
+                if country_code:
+                    driving_sides[country_code] = side == "right"
+    
+    # Special cases
+    driving_sides["AX"] = True  # Åland Islands, drives on right
+    driving_sides["SJ"] = True  # Svalbard and Jan Mayen, drives on right, however, there are no places to drive!!!!
     # Sort dictionary by keys
     driving_sides = dict(sorted(driving_sides.items()))
 

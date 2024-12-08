@@ -9,6 +9,7 @@ from datasets import DatasetDict, Dataset
 from transformers import CLIPProcessor, CLIPModel
 from torchvision.transforms import RandomCrop, CenterCrop
 from config import CLIP_MODEL, IMAGE_PATH, IMAGE_PATH_2, PRETRAIN_METADATA_PATH
+from pathlib import Path
 
 # Initialize CLIP image processor
 clip_processor = CLIPProcessor.from_pretrained(CLIP_MODEL)
@@ -165,8 +166,8 @@ class PretrainDataset(torch.utils.data.Dataset):
         # elif s.source.startswith("v"):
         # Load the image
         try:
-            image_filename = s["image"]
-            image = Image.open(image_filename)
+            image_filename = s.source
+            image = Image.open(Path("./" + image_filename + ".jpg"))
             image = v_cropper(image)
             angle_offset = 0
 
@@ -201,13 +202,13 @@ class PretrainDataset(torch.utils.data.Dataset):
 
         country = country if country not in THE_LIST else f"the {country}"
 
-        if self._is_valid(s.geo_area) and random.random() > 0.4:
-            region_string = f"in the region of {s.geo_area} "
+        if self._is_valid(s.region) and random.random() > 0.4:
+            region_string = f"in the region of {s.region} "
         else:
             region_string = ""
 
-        if self._is_valid(s.town) and random.random() > 0.6:
-            town_string = f"close to the town of {s.town} "
+        if self._is_valid(s.city) and random.random() > 0.6:
+            town_string = f"close to the town of {s.city} "
         else:
             town_string = ""
 
@@ -229,36 +230,38 @@ class PretrainDataset(torch.utils.data.Dataset):
 
         # Driving right or left
         if (
-            self._is_valid(s.driving_right)
+            self._is_valid(s.drive_side == 0)
             and climate_caption == ""
             and random.random() > 0.7
         ):
-            direction = "right" if s.driving_right else "left"
+            direction = "right" if s.drive_side == 0 else "left"
             driving_right_caption = (
                 f" In this location, people drive on the {direction} side of the road."
             )
         else:
             driving_right_caption = ""
 
-        # Compass direction
-        if self._is_valid(s.heading) and random.random() > 0.7:
-            compass_direction = (s.heading + heading_offset) % 360
-            if compass_direction <= 45 or compass_direction > 315:
-                compass_caption = " This photo is facing north."
-            elif compass_direction > 45 and compass_direction <= 135:
-                compass_caption = " This photo is facing east."
-            elif compass_direction > 135 and compass_direction <= 225:
-                compass_caption = " This photo is facing south."
-            elif compass_direction > 225 and compass_direction <= 315:
-                compass_caption = " This photo is facing west."
-        else:
-            compass_caption = ""
+        # # Compass direction
+        # if self._is_valid(s.heading) and random.random() > 0.7:
+        #     compass_direction = (s.heading + heading_offset) % 360
+        #     if compass_direction <= 45 or compass_direction > 315:
+        #         compass_caption = " This photo is facing north."
+        #     elif compass_direction > 45 and compass_direction <= 135:
+        #         compass_caption = " This photo is facing east."
+        #     elif compass_direction > 135 and compass_direction <= 225:
+        #         compass_caption = " This photo is facing south."
+        #     elif compass_direction > 225 and compass_direction <= 315:
+        #         compass_caption = " This photo is facing west."
+        # else:
+        
+        # Above is commented out as there is only one input image .... for now
+        compass_caption = ""
 
-        # Month (because of seasons)
-        if self._is_valid(s.month) and random.random() > 0.7:
-            month_caption = f" The photo was taken in {MONTHS[s.month]}."
-        else:
-            month_caption = ""
+        # Month (because of seasons), not in dataset so ignored
+        # if self._is_valid(s.month) and random.random() > 0.7:
+        #     month_caption = f" The photo was taken in {MONTHS[s.month]}."
+        # else:
+        month_caption = ""
 
         other_components = [
             climate_caption,
@@ -302,7 +305,7 @@ class PretrainDataset(torch.utils.data.Dataset):
         return image, caption
 
     def __len__(self):
-        return self.cutoff_3
+        return len(self.df)
 
     @classmethod
     def generate(
@@ -341,7 +344,7 @@ class PretrainDataset(torch.utils.data.Dataset):
         accs = []
         for t in range(trials):
             inputs = [self[(t * batch_size) + i] for i in range(batch_size)]
-            images, captions, _ = zip(*inputs)
+            images, captions = zip(*inputs)
             images = list(images)
             captions = list(captions)
 
@@ -353,13 +356,14 @@ class PretrainDataset(torch.utils.data.Dataset):
                 truncation=True,
             )
             for key in inputs:
-                inputs[key] = inputs[key].to("cuda")
+                inputs[key] = inputs[key]
 
             inputs["return_loss"] = True
             outputs = model(**inputs)
             predictions = outputs.logits_per_image.softmax(dim=1).argmax(dim=1)
-            accuracy = (predictions == torch.arange(batch_size, device="cuda")).sum()
+            accuracy = (predictions == torch.arange(batch_size)).sum()
             accs.append(accuracy / batch_size)
 
         acc = sum(accs) / trials
+        print(accs)
         return acc

@@ -20,8 +20,8 @@ cd data/pop_density
 unzip GHS_POP_E2020_GLOBE_R2022A_54009_1000_V1_0.zip
 cd ../..
 
-# Koppen-Geiger Climate Zone Data
-curl --create-dirs -O --output-dir data/koppen_geiger https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/12407516/Beck_KG_V1.zip
-cd data/koppen_geiger
-unzip Beck_KG_V1.zip
-cd ../..
+# Old Koppen-Geiger Climate Zone Data, now handled by the kgcpy package!
+# curl --create-dirs -O --output-dir data/koppen_geiger https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/12407516/Beck_KG_V1.zip
+# cd data/koppen_geiger
+# unzip Beck_KG_V1.zip
+# cd ../..
