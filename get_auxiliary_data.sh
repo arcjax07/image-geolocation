@@ -1,5 +1,9 @@
 # Downloads data needed for data augmentation and training on auxiliary data.
 
+# OSV5M download lol!
+python downloader.py
+python extractor.py
+
 # Driving Side of the Road
 python data/driving_side/driving_side.py
 

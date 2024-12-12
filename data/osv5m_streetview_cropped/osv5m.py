@@ -4,15 +4,14 @@ import datasets
 from os.path import join
 
 # convert these to features
-# id,latitude,longitude,thumb_original_url,country,sequence,captured_at,lon_bin,lat_bin,cell,region,sub-region,city,land_cover,road_index,drive_side,climate,soil,dist_sea,quadtree_10_5000,quadtree_10_25000,quadtree_10_1000,quadtree_10_50000,quadtree_10_12500,quadtree_10_500,quadtree_10_2500,unique_region,unique_sub-region,unique_city,unique_country,creator_username,creator_id
-# 3859149887465501,-43.804769384023,-176.61409250805,,8,"(0, 8)",Chatham Islands,,Waitangi,4,4.661764145,1,15,3,0.0068841379890803,0,0,0,0,0,0,0,Chatham Islands_NZ,,Waitangi_NaN_Chatham Islands_NZ,NZ,roadroid,111336221091714.0
-
+#id,latitude,longitude,thumb_original_url,country,sequence,captured_at,lon_bin,lat_bin,cell,region,sub-region,city,land_cover,road_index,drive_side,climate,soil,dist_sea,quadtree_10_5000,quadtree_10_25000,quadtree_10_1000,quadtree_10_50000,quadtree_10_12500,quadtree_10_500,quadtree_10_2500,unique_region,unique_sub-region,unique_city,unique_country,creator_username,creator_id
+#3859149887465501,-43.804769384023,-176.61409250805,,8,"(0, 8)",Chatham Islands,,Waitangi,4,4.661764145,1,15,3,0.0068841379890803,0,0,0,0,0,0,0,Chatham Islands_NZ,,Waitangi_NaN_Chatham Islands_NZ,NZ,roadroid,111336221091714.0
 
 class OSV5M(datasets.GeneratorBasedBuilder):
     def __init__(self, *args, **kwargs):
-        self.full = kwargs.pop("full", False)
+        self.full = kwargs.pop('full', False)
         super().__init__(*args, **kwargs)
-        print("OSV5M", self.__dict__)
+        print('OSV5M', self.__dict__)
 
     def _info(self):
         if self.full:
@@ -70,76 +69,27 @@ class OSV5M(datasets.GeneratorBasedBuilder):
             )
 
     def df(self, annotation_path):
-        if not hasattr(self, "df_"):
+        if not hasattr(self, 'df_'):
             self.df_ = {}
         if annotation_path not in self.df_:
-            df = pd.read_csv(
-                annotation_path,
-                dtype={
-                    "id": str,
-                    "creator_id": str,
-                    "creator_username": str,
-                    "unique_country": str,
-                    "unique_city": str,
-                    "unique_sub-region": str,
-                    "unique_region": str,
-                    "quadtree_10_2500": int,
-                    "quadtree_10_500": int,
-                    "quadtree_10_12500": int,
-                    "quadtree_10_50000": int,
-                    "quadtree_10_1000": int,
-                    "quadtree_10_25000": int,
-                    "quadtree_10_5000": int,
-                    "dist_sea": float,
-                    "soil": float,
-                    "climate": float,
-                    "drive_side": float,
-                    "road_index": float,
-                    "land_cover": float,
-                    "city": str,
-                    "sub-region": str,
-                    "region": str,
-                    "cell": str,
-                    "lat_bin": float,
-                    "lon_bin": float,
-                    "captured_at": str,
-                    "sequence": str,
-                    "country": str,
-                    "thumb_original_url": str,
-                    "longitude": float,
-                    "latitude": float,
-                },
-            )
+            df = pd.read_csv(annotation_path, dtype={
+                'id': str, 'creator_id': str, 'creator_username': str, 
+                'unique_country': str, 'unique_city': str, 'unique_sub-region': str, 'unique_region': str,
+                'quadtree_10_2500': int, 'quadtree_10_500': int, 'quadtree_10_12500': int, 'quadtree_10_50000': int, 'quadtree_10_1000': int, 'quadtree_10_25000': int, 'quadtree_10_5000': int,
+                'dist_sea': float, 'soil': float, 'climate': float, 'drive_side': float, 'road_index': float, 'land_cover': float, 'city': str, 'sub-region': str, 'region': str, 'cell': str, 'lat_bin': float, 'lon_bin': float, 'captured_at': str, 'sequence': str, 'country': str, 'thumb_original_url': str, 'longitude': float, 'latitude': float
+            })
             if not self.full:
-                df = df[
-                    [
-                        "id",
-                        "latitude",
-                        "longitude",
-                        "country",
-                        "region",
-                        "sub-region",
-                        "city",
-                    ]
-                ]
+                df = df[['id', 'latitude', 'longitude', 'country', 'region', 'sub-region', 'city']]
 
-            df = df.set_index("id")
-            self.df_[annotation_path] = df.to_dict("index")
+            df = df.set_index('id')
+            self.df_[annotation_path] = df.to_dict('index')
         return self.df_[annotation_path]
 
     def _split_generators(self, dl_manager):
         _URLS = {
-            "train": [
-                join("images", "train", str(i).zfill(2) + ".zip") for i in range(78)
-            ],  # reduced from 98
-            "val": [
-                join("images", "val", str(i).zfill(2) + ".zip") for i in range(20)
-            ],  # new validation split
-            "test": [
-                join("images", "test", str(i).zfill(2) + ".zip") for i in range(5)
-            ],
+            "train": [join('images', 'train', str(i).zfill(2) + '.zip') for i in range(98)],
+            "test": [join('images', 'test', str(i).zfill(2) + '.zip') for i in range(5)],
             "train_meta": "train.csv",
-            "val_meta": "val.csv",  # new validation metadata
             "test_meta": "test.csv",
         }
 
@@ -150,13 +100,6 @@ class OSV5M(datasets.GeneratorBasedBuilder):
                 gen_kwargs={
                     "image_paths": dl_manager.iter_files(data_files["train"]),
                     "annotation_path": data_files["train_meta"],
-                },
-            ),
-            datasets.SplitGenerator(
-                name=datasets.Split.VALIDATION,
-                gen_kwargs={
-                    "image_paths": dl_manager.iter_files(data_files["val"]),
-                    "annotation_path": data_files["val_meta"],
                 },
             ),
             datasets.SplitGenerator(
@@ -178,7 +121,7 @@ class OSV5M(datasets.GeneratorBasedBuilder):
                     "image": image_path,
                 } | df[info_id]
             except Exception as e:
-                print("Exception " + str(e), info_id, idx, image_path, sep="\n")
+                print('Exception ' + str(e), info_id, idx, image_path, sep='\n')
                 continue
 
             yield idx, example
